@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation System</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #141e30, #243b55);
+            color: white;
+            text-align: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            padding: 30px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .hero-section {
+            margin-bottom: 50px;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-top: 30px;
+        }
+
+        form {
+            margin-bottom: 40px;
+        }
+
+        .autocomplete-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        input[type="text"] {
+            padding: 15px;
+            width: 100%;
+            max-width: 500px;
+            border: 2px solid #00c6ff;
+            border-radius: 8px;
+            outline: none;
+            font-size: 1rem;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            transition: box-shadow 0.3s ease-in-out;
+        }
+
+        input[type="text"]:focus {
+            box-shadow: 0 0 15px #00c6ff;
+        }
+
+        #allMoviesButton,
+        #allGenresButton {
+            padding: 12px 25px;
+            background: #00c6ff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+            margin-top: 15px;
+            margin-left: 10px;
+        }
+
+        #allMoviesButton:hover,
+        #allGenresButton:hover {
+            background: #007bb5;
+        }
+
+        .button-group button {
+            margin: 10px;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 1rem;
+        }
+
+        .button-group button:hover {
+            transform: scale(1.1);
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        #result {
+            margin-top: 40px;
+        }
+
+        .movie-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .movie-card {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .movie-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #30383a;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #clearButton {
+            background-color: #f44336;
+            color: white;
+        }
+
+        #clearButton:hover {
+            background-color: #d32f2f;
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            color: #ddd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <div class="hero-section">
+            <h1 class="title">🎬 Movie Recommendation System 🎥</h1>
+            <p>Find your next favorite movie by entering a movie title or genre!</p>
+        </div>
+
+        <form id="recommendForm">
+            <label for="query">Enter a Movie or Genre:</label>
+            <div class="autocomplete-container">
+                <input type="text" id="query" name="query" placeholder="E.g., Inception or Action" autocomplete="off" />
+                <div>
+                    <button type="button" id="allMoviesButton">▼ Movies</button>
+                    <button type="button" id="allGenresButton">▼ Genres</button>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit">Get Recommendations</button>
+                <button type="button" id="clearButton">Clear</button>
+            </div>
+        </form>
+
+        <div id="result">
+            <h2>Recommended Movies:</h2>
+            <ul id="recommendedMovies" class="movie-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const queryInput = document.getElementById('query');
+        const recommendedList = document.getElementById('recommendedMovies');
+
+        // Fetch all movies on button click
+        document.getElementById('allMoviesButton').addEventListener('click', function () {
+            fetch('/get_all_movies')
+                .then(response => response.json())
+                .then(data => showAutocomplete(data))
+                .catch(error => console.error('Error fetching all movies:', error));
+        });
+
+        // Fetch all genres on button click
+        document.getElementById('allGenresButton').addEventListener('click', function () {
+            fetch('/get_all_genres')
+                .then(response => response.json())
+                .then(data => showAutocomplete(data))
+                .catch(error => console.error('Error fetching all genres:', error));
+        });
+
+        // Handle form submission without refreshing the page
+        document.getElementById('recommendForm').addEventListener('submit', function (event) {
+            event.preventDefault();  // Prevent form from submitting in the traditional way
+            const query = queryInput.value.trim();
+
+            if (!query) {
+                alert('Please enter a movie name or genre.');
+                return;
+            }
+
+            // Fetch recommendations based on the query
+            fetch(`/recommend?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => displayRecommendations(data))
+                .catch(error => console.error('Error fetching recommendations:', error));
+        });
+
+        // Display the recommendations
+        function displayRecommendations(movies) {
+            recommendedList.innerHTML = '';
+            if (movies.length === 0) {
+                recommendedList.innerHTML = '<li>No movies found.</li>';
+            } else {
+                movies.forEach(movie => {
+                    const li = document.createElement('li');
+                    li.className = 'movie-card';
+                    li.textContent = movie;
+                    recommendedList.appendChild(li);
+                });
+            }
+        }
+
+        // Clear inputs and results
+        document.getElementById('clearButton').addEventListener('click', function () {
+            queryInput.value = '';
+            recommendedList.innerHTML = '';
+        });
+
+        // Show autocomplete suggestions
+        function showAutocomplete(items) {
+            recommendedList.innerHTML = '';  // Clear previous suggestions
+            if (items.length === 0) {
+                recommendedList.innerHTML = '<li>No items found.</li>';
+            } else {
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'movie-card';
+                    li.textContent = item;
+                    li.addEventListener('click', () => {
+                        queryInput.value = item;  // Keep the item selected in the input
+                        recommendedList.innerHTML = '';  // Clear the suggestions after selecting
+                    });
+                    recommendedList.appendChild(li);
+                });
+            }
+        }
+    </script>
+
+</body>
+
+</html>
